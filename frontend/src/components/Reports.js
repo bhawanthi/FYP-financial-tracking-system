@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getUserData, clearAuthData, formatCurrency } from '../utils/auth';
 import './styles/Reports.css';
-import MoneyVueLogo from '../assets/Finance_Logo.png';
+/* global globalThis */
 
 const Reports = () => {
   const [user, setUser] = useState(null);
@@ -13,8 +13,201 @@ const Reports = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  const [investmentPredictions, setInvestmentPredictions] = useState(null);
+  const [loadingPredictions, setLoadingPredictions] = useState(false);
+  const [lastPredictionRefresh, setLastPredictionRefresh] = useState(null);
+  const [showCapitalizer, setShowCapitalizer] = useState(false);
+  const [capitalizeAmount, setCapitalizeAmount] = useState('');
+  const [investmentDuration, setInvestmentDuration] = useState('3m');
+  const [selectedCompany, setSelectedCompany] = useState('');
+  const [capitalizationResult, setCapitalizationResult] = useState(null);
+  const [sriLankaPage, setSriLankaPage] = useState(1);
   const isFetchingRef = useRef(false);
   const navigate = useNavigate();
+
+  const SRI_LANKA_PAGE_SIZE = 5;
+
+  const getPeriodLabel = (period) => {
+    if (period === '30d') return 'Last 30 Days';
+    if (period === '90d') return 'Last 90 Days';
+    if (period === '12m') return 'Last 12 Months';
+    return 'Selected Period';
+  };
+
+  const getPeriodText = (period) => {
+    if (period === '30d') return '30 days';
+    if (period === '90d') return '90 days';
+    return '12 months';
+  };
+
+  const getBudgetStatusLabel = (status) => {
+    if (status === 'over') return '⚠️ Over Budget';
+    if (status === 'no-budget') return '📝 No Budget Set';
+    return '✅ Under Budget';
+  };
+
+  const getBudgetStatusMeta = (status, spentPercentage) => {
+    if (status === 'no-budget') return '(Create budget to track)';
+    return `(${spentPercentage.toFixed(1)}%)`;
+  };
+
+  const formatMarketPrice = (value, currency) => {
+    if (typeof value !== 'number' || Number.isNaN(value)) return 'N/A';
+    return `${value.toFixed(2)} ${currency || ''}`.trim();
+  };
+
+  const formatChangePercent = (value) => {
+    if (typeof value !== 'number' || Number.isNaN(value)) return 'N/A';
+    const sign = value > 0 ? '+' : '';
+    return `${sign}${value.toFixed(2)}%`;
+  };
+
+  const getChangeClass = (value) => {
+    if (typeof value !== 'number') return '';
+    return value >= 0 ? 'positive' : 'negative';
+  };
+
+  const buildMarketInvestments = (items, icon, monthlyIncome, fallbackText) => {
+    if (!Array.isArray(items)) return [];
+
+    let salaryRecommendation;
+    if (icon === '🌍') {
+      salaryRecommendation = monthlyIncome >= 100000
+        ? 'Use 10-20% of monthly savings for global diversification.'
+        : 'Build emergency fund first, then start small monthly contributions.';
+    }
+
+    return items.map((item) => ({
+      icon,
+      name: item.name,
+      symbol: item.symbol,
+      type: item.type,
+      risk: item.live ? 'Low' : 'Moderate',
+      description: item.live
+        ? 'Live quote connected from market provider.'
+        : (item.note || fallbackText),
+      expectedReturn: 'Market-linked',
+      minInvestment: 'Varies',
+      timeHorizon: icon === '🇱🇰' ? 'Medium to Long-term' : 'Long-term',
+      live: Boolean(item.live),
+      currentPrice: item.current,
+      changePercent: item.changePercent,
+      currency: item.currency,
+      features: [
+        `Symbol: ${item.symbol}`,
+        `Type: ${item.type}`,
+        `Currency: ${item.currency}`
+      ],
+      salaryRecommendation
+    }));
+  };
+
+  const getInvestmentRate = (investment) => {
+    if (!investment) return 0;
+    const riskLevel = investment.risk?.toLowerCase();
+    if (riskLevel === 'low') return 6;
+    if (riskLevel === 'moderate') return 10;
+    if (riskLevel === 'high') return 14;
+    return 8;
+  };
+
+  const getDurationMonths = (duration) => {
+    if (duration === '3m') return 3;
+    if (duration === '6m') return 6;
+    return 12;
+  };
+
+  const getGoodRateThreshold = (riskProfile) => {
+    if (riskProfile === 'Conservative') return 6;
+    if (riskProfile === 'Aggressive') return 10;
+    return 8;
+  };
+
+  const handlePrintCapitalizer = () => {
+    if (!capitalizationResult) return;
+
+    const printWindow = window.open('', '_blank', 'width=900,height=700');
+    if (!printWindow) return;
+
+    const generatedAt = new Date().toLocaleString();
+    const assessmentText = capitalizationResult.rate >= capitalizationResult.threshold
+      ? 'Looks good for your profile'
+      : 'Low return for your profile';
+
+    printWindow.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>Investment Capital Planner</title>
+          <style>
+            body { font-family: "Segoe UI", Arial, sans-serif; color: #0f172a; margin: 32px; }
+            h1 { font-size: 22px; margin: 0 0 8px; }
+            .meta { color: #475569; font-size: 12px; margin-bottom: 24px; }
+            .card { border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px 20px; }
+            .row { display: flex; justify-content: space-between; gap: 16px; padding: 8px 0; border-bottom: 1px dashed #e2e8f0; }
+            .row:last-child { border-bottom: none; }
+            .label { color: #475569; font-weight: 600; }
+            .value { font-weight: 700; }
+            .highlight { margin-top: 16px; padding: 12px 16px; background: #eff6ff; border-radius: 10px; }
+          </style>
+        </head>
+        <body>
+          <h1>Investment Capital Planner</h1>
+          <div class="meta">Generated on ${generatedAt}</div>
+          <div class="card">
+            <div class="row"><span class="label">Selected company</span><span class="value">${capitalizationResult.selected.name}</span></div>
+            <div class="row"><span class="label">Investment amount</span><span class="value">${formatCurrency(capitalizationResult.amountValue)}</span></div>
+            <div class="row"><span class="label">Duration</span><span class="value">${capitalizationResult.months} months</span></div>
+            <div class="row"><span class="label">Interest rate</span><span class="value">${capitalizationResult.rate}% (annual)</span></div>
+            <div class="row"><span class="label">Projected interest</span><span class="value">${formatCurrency(capitalizationResult.projectedInterest)}</span></div>
+            <div class="row"><span class="label">Projected total</span><span class="value">${formatCurrency(capitalizationResult.projectedTotal)}</span></div>
+            <div class="row"><span class="label">Assessment</span><span class="value">${assessmentText}</span></div>
+          </div>
+          ${capitalizationResult.bestOption ? `
+            <div class="highlight">
+              <strong>Best option:</strong> ${capitalizationResult.bestOption.option.name} (${capitalizationResult.bestOption.rate}% annual)
+            </div>
+          ` : ''}
+        </body>
+      </html>
+    `);
+
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    printWindow.close();
+  };
+
+  const fetchAuthorizedJson = async (url, token, errorMessage, timeoutMs = 15000) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    }).finally(() => clearTimeout(timeoutId));
+
+    if (!response.ok) {
+      throw new Error(errorMessage);
+    }
+
+    return response.json();
+  };
+
+  const resolveRiskProfile = (savingsRate, personalizedProfile) => {
+    if (personalizedProfile?.riskProfile) {
+      return personalizedProfile.riskProfile;
+    }
+
+    const numericSavingsRate = Number(savingsRate);
+    if (numericSavingsRate >= 25) return 'Aggressive';
+    if (numericSavingsRate >= 12) return 'Moderate';
+    return 'Conservative';
+  };
 
   // Initialize user data
   useEffect(() => {
@@ -48,7 +241,7 @@ const Reports = () => {
         throw new Error('No authentication token found');
       }
 
-      const response = await fetch(`http://localhost:5000/api/reports/analytics?period=${dateRange}`, {
+      const response = await fetch(`/api/reports/analytics?period=${dateRange}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -80,6 +273,711 @@ const Reports = () => {
     fetchReportData();
   }, [fetchReportData]);
 
+  // Fetch investment predictions
+  const fetchInvestmentPredictions = useCallback(async (silent = false) => {
+    if (!silent) {
+      setLoadingPredictions(true);
+    }
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      const spendingData = await fetchAuthorizedJson(
+        '/api/ai/predictions/spending?months=6',
+        token,
+        'Failed to fetch AI spending predictions'
+      );
+
+      let personalizedData = { profile: {}, tips: [], recommendations: [], allocation: {} };
+      try {
+        personalizedData = await fetchAuthorizedJson(
+          '/api/ai/recommendations/personalized?months=6',
+          token,
+          'Failed to fetch personalized investment recommendations'
+        );
+      } catch (personalizedError) {
+        console.warn('Personalized recommendations unavailable:', personalizedError.message);
+      }
+
+      let marketData = { data: { sriLanka: [], abroad: [] } };
+      try {
+        marketData = await fetchAuthorizedJson(
+          '/api/ai/market/watchlist',
+          token,
+          'Failed to fetch market watchlist'
+        );
+      } catch (marketError) {
+        console.warn('Using fallback watchlist state:', marketError.message);
+      }
+
+      const monthlyIncome = Number(reportData?.summary?.totalIncome || 0) / 3;
+      const monthlyExpenses = Number(reportData?.summary?.totalExpenses || 0) / 3;
+      const monthlySavings = monthlyIncome - monthlyExpenses;
+      const savingsRate = monthlyIncome > 0 ? ((monthlySavings / monthlyIncome) * 100).toFixed(1) : '0.0';
+
+      const spendingCategories = Array.isArray(spendingData?.categories) ? spendingData.categories : [];
+      const highRiskCategories = spendingCategories.filter((c) => c.risk === 'high');
+
+      const sriLanka = buildMarketInvestments(
+        marketData?.data?.sriLanka,
+        '🇱🇰',
+        monthlyIncome,
+        'Sri Lanka market reference instrument.'
+      );
+
+      const international = buildMarketInvestments(
+        marketData?.data?.abroad,
+        '🌍',
+        monthlyIncome,
+        'International market reference instrument.'
+      );
+
+      const tips = [
+        {
+          icon: '📉',
+          title: 'AI Spending Forecast',
+          description: `Predicted next-month expenses: ${formatCurrency(spendingData?.summary?.predictedTotalExpensesNextMonth || 0)} using ${spendingData?.model || 'statistical model'}.`
+        },
+        {
+          icon: highRiskCategories.length > 0 ? '⚠️' : '✅',
+          title: highRiskCategories.length > 0 ? 'Budget Risk Alert' : 'Budget Health',
+          description: highRiskCategories.length > 0
+            ? `${highRiskCategories.length} categories may exceed budget next month. Focus on top risks first.`
+            : 'No high-risk budget categories detected in next-month forecast.'
+        },
+        {
+          icon: '🧠',
+          title: 'Confidence Score',
+          description: spendingCategories.length > 0
+            ? `Average model confidence: ${Math.round(spendingCategories.reduce((s, c) => s + (c.confidence || 0), 0) / spendingCategories.length)}%.`
+            : 'Add more transactions to improve model confidence and prediction quality.'
+        }
+      ];
+
+      const riskProfile = resolveRiskProfile(savingsRate, personalizedData?.profile);
+
+      const marketItems = [...sriLanka, ...international];
+      const liveCount = marketItems.filter((item) => item.live).length;
+      const totalCount = marketItems.length;
+      const sourceStatus = liveCount > 0 ? 'Live' : 'Fallback';
+
+      setInvestmentPredictions({
+        profile: {
+          monthlyIncome,
+          monthlySavings,
+          savingsRate,
+          riskProfile,
+          stabilityScore: personalizedData?.profile?.stabilityScore,
+          emergencyCoverageMonths: personalizedData?.profile?.emergencyCoverageMonths,
+          recommendedInvestMonthly: personalizedData?.profile?.recommendedInvestMonthly
+        },
+        sriLanka,
+        international,
+        tips: [...tips, ...(personalizedData?.tips || [])],
+        personalized: {
+          recommendations: personalizedData?.recommendations || [],
+          allocation: personalizedData?.allocation || {}
+        },
+        source: {
+          predictions: 'GET /api/ai/predictions/spending',
+          personalization: 'GET /api/ai/recommendations/personalized',
+          market: 'GET /api/ai/market/watchlist',
+          marketProvider: marketData?.source || 'unknown',
+          sourceStatus,
+          liveCount,
+          totalCount
+        }
+      });
+      setLastPredictionRefresh(new Date());
+    } catch (err) {
+      console.error('Error fetching investment predictions:', err);
+      setInvestmentPredictions({ error: err.message });
+    } finally {
+      if (!silent) {
+        setLoadingPredictions(false);
+      }
+    }
+  }, [reportData]);
+
+  const renderInvestmentPredictions = () => {
+    if (loadingPredictions) {
+      return (
+        <div className="loading-predictions">
+          <div className="loading-spinner"></div>
+          <p>Analyzing your financial profile...</p>
+        </div>
+      );
+    }
+
+    if (investmentPredictions?.error) {
+      return (
+        <div className="error-message">
+          <div className="error-icon">⚠️</div>
+          <p>{investmentPredictions.error}</p>
+          <button onClick={fetchInvestmentPredictions} className="retry-btn">
+            Try Again
+          </button>
+        </div>
+      );
+    }
+
+    if (!investmentPredictions) {
+      return (
+        <div className="no-predictions">
+          <div className="no-data-icon">🤖</div>
+          <h4>Get Your Personalized Investment Recommendations</h4>
+          <p>Click the button below to receive AI-powered investment suggestions tailored to your income and savings.</p>
+          <button onClick={fetchInvestmentPredictions} className="get-predictions-btn">
+            🚀 Get Investment Predictions
+          </button>
+        </div>
+      );
+    }
+
+    const allInvestmentOptions = [
+      ...(investmentPredictions.sriLanka || []),
+      ...(investmentPredictions.international || [])
+    ];
+    const availableToInvest = Math.max(Number(investmentPredictions.profile?.monthlySavings || 0), 0);
+    const parsedAmount = Number(capitalizeAmount);
+    const canAfford = parsedAmount > 0 && parsedAmount <= availableToInvest;
+    const canSubmit = parsedAmount > 0 && Boolean(selectedCompany);
+
+    return (
+      <div className="investment-predictions-content">
+        {/* Financial Profile Summary */}
+        <div className="financial-profile">
+          <h4>📊 Your Financial Profile</h4>
+          <div className="market-source-row">
+            <span className={`market-source-badge ${investmentPredictions.source?.sourceStatus?.toLowerCase() || 'fallback'}`}>
+              {investmentPredictions.source?.sourceStatus || 'Fallback'} Data
+            </span>
+            <span className="market-source-meta">
+              {investmentPredictions.source?.liveCount || 0}/{investmentPredictions.source?.totalCount || 0} live quotes
+            </span>
+            <span className="market-source-meta">
+              Updated: {lastPredictionRefresh ? lastPredictionRefresh.toLocaleTimeString() : 'N/A'}
+            </span>
+          </div>
+          <div className="profile-stats">
+            <div className="profile-stat">
+              <span className="stat-label">Monthly Income:</span>
+              <span className="stat-value">{formatCurrency(investmentPredictions.profile?.monthlyIncome || 0)}</span>
+            </div>
+            <div className="profile-stat">
+              <span className="stat-label">Monthly Savings:</span>
+              <span className="stat-value">{formatCurrency(investmentPredictions.profile?.monthlySavings || 0)}</span>
+            </div>
+            <div className="profile-stat">
+              <span className="stat-label">Savings Rate:</span>
+              <span className="stat-value">{investmentPredictions.profile?.savingsRate || 0}%</span>
+            </div>
+            <div className="profile-stat">
+              <span className="stat-label">Risk Profile:</span>
+              <span className={`stat-value risk-${investmentPredictions.profile?.riskProfile?.toLowerCase()}`}>
+                {investmentPredictions.profile?.riskProfile || 'Moderate'}
+              </span>
+            </div>
+            <div className="profile-stat">
+              <span className="stat-label">Stability Score:</span>
+              <span className="stat-value">{investmentPredictions.profile?.stabilityScore ?? 'N/A'}</span>
+            </div>
+            <div className="profile-stat">
+              <span className="stat-label">Emergency Coverage:</span>
+              <span className="stat-value">{investmentPredictions.profile?.emergencyCoverageMonths ?? 'N/A'} months</span>
+            </div>
+            <div className="profile-stat">
+              <span className="stat-label">Recommended Monthly Invest:</span>
+              <span className="stat-value">{formatCurrency(investmentPredictions.profile?.recommendedInvestMonthly || 0)}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="financial-profile investment-capitalizer">
+          <div className="capitalizer-header">
+            <h4>💡 Investment Capital Planner</h4>
+            <p className="capitalizer-subtitle">
+              Enter the amount you plan to invest, select a duration, and pick a company to estimate returns.
+            </p>
+          </div>
+          <div className="capitalizer-action">
+            <button
+              type="button"
+              className="capitalize-btn"
+              onClick={() => setShowCapitalizer((prev) => !prev)}
+            >
+              Capitalize Amount
+            </button>
+            <button
+              type="button"
+              className="print-capitalizer-btn"
+              onClick={handlePrintCapitalizer}
+              disabled={!capitalizationResult}
+            >
+              Print / Save PDF
+            </button>
+            <button
+              type="button"
+              className="refresh-predictions-btn"
+              onClick={() => {
+                setCapitalizeAmount('');
+                setInvestmentDuration('3m');
+                setSelectedCompany('');
+                setCapitalizationResult(null);
+              }}
+            >
+              🔄 Refresh Data
+            </button>
+            <span className="capitalizer-meta">
+              Available to invest: {formatCurrency(availableToInvest)}
+            </span>
+          </div>
+
+          {showCapitalizer && (
+            <form
+              className="capitalizer-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+
+                const amountValue = Number(capitalizeAmount);
+                const months = getDurationMonths(investmentDuration);
+                const selected = allInvestmentOptions.find((option) => (
+                  (option.symbol || option.name) === selectedCompany
+                ));
+
+                if (!selected || Number.isNaN(amountValue) || amountValue <= 0) {
+                  return;
+                }
+
+                const rate = getInvestmentRate(selected);
+                const projectedInterest = amountValue * (rate / 100) * (months / 12);
+                const projectedTotal = amountValue + projectedInterest;
+                const threshold = getGoodRateThreshold(investmentPredictions.profile?.riskProfile);
+
+                const bestOption = allInvestmentOptions
+                  .map((option) => {
+                    const optionRate = getInvestmentRate(option);
+                    const optionInterest = amountValue * (optionRate / 100) * (months / 12);
+                    return {
+                      option,
+                      rate: optionRate,
+                      projectedInterest: optionInterest,
+                      projectedTotal: amountValue + optionInterest
+                    };
+                  })
+                  .sort((a, b) => b.projectedInterest - a.projectedInterest)[0];
+
+                setCapitalizationResult({
+                  amountValue,
+                  months,
+                  selected,
+                  rate,
+                  projectedInterest,
+                  projectedTotal,
+                  canAfford,
+                  threshold,
+                  bestOption
+                });
+              }}
+            >
+              <div className="capitalizer-row">
+                <label className="capitalizer-label" htmlFor="capitalize-amount">
+                  Amount to invest
+                </label>
+                <div className="capitalizer-amount-row">
+                  <input
+                    id="capitalize-amount"
+                    className="capitalizer-input"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={capitalizeAmount}
+                    onChange={(event) => {
+                      setCapitalizeAmount(event.target.value);
+                      setCapitalizationResult(null);
+                    }}
+                    placeholder="Enter total amount"
+                  />
+                  {parsedAmount > 0 && (
+                    <span className={`capitalizer-status ${canAfford ? 'ok' : 'warn'}`}>
+                      {canAfford ? '✅ OK' : '⚠️ Not enough balance'}
+                    </span>
+                  )}
+                </div>
+                {!canAfford && parsedAmount > 0 && (
+                  <span className="capitalizer-warning">
+                    This exceeds your available monthly savings.
+                  </span>
+                )}
+              </div>
+
+              <div className="capitalizer-row">
+                <span className="capitalizer-label">Investment duration</span>
+                <div className="capitalizer-radio-group">
+                  {[
+                    { value: '3m', label: '3 Months' },
+                    { value: '6m', label: '6 Months' },
+                    { value: '12m', label: 'Annual' }
+                  ].map((option) => (
+                    <label
+                      key={option.value}
+                      className={`capitalizer-radio ${investmentDuration === option.value ? 'active' : ''}`}
+                    >
+                      <input
+                        type="radio"
+                        name="investment-duration"
+                        value={option.value}
+                        checked={investmentDuration === option.value}
+                        onChange={(event) => {
+                          setInvestmentDuration(event.target.value);
+                          setCapitalizationResult(null);
+                        }}
+                      />
+                      {option.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="capitalizer-row">
+                <label className="capitalizer-label" htmlFor="company-select">
+                  Choose a company
+                </label>
+                <select
+                  id="company-select"
+                  className="capitalizer-select"
+                  value={selectedCompany}
+                  onChange={(event) => {
+                    setSelectedCompany(event.target.value);
+                    setCapitalizationResult(null);
+                  }}
+                >
+                  {allInvestmentOptions.map((option) => {
+                    const optionValue = option.symbol || option.name;
+                    const optionLabel = `${option.name}${option.symbol ? ` (${option.symbol})` : ''}`;
+                    return (
+                      <option key={optionValue} value={optionValue}>
+                        {optionLabel}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+
+              <button type="submit" className="capitalizer-submit" disabled={!canSubmit}>
+                Calculate Return
+              </button>
+            </form>
+          )}
+
+          {capitalizationResult && (
+            <div className="capitalizer-result">
+              <div className="result-row">
+                <span className="result-label">Selected company:</span>
+                <span className="result-value">
+                  {capitalizationResult.selected.name}
+                </span>
+              </div>
+              <div className="result-row">
+                <span className="result-label">Interest rate:</span>
+                <span className="result-value">
+                  {capitalizationResult.rate}% (annual)
+                </span>
+              </div>
+              <div className="result-row">
+                <span className="result-label">Projected interest:</span>
+                <span className="result-value">
+                  {formatCurrency(capitalizationResult.projectedInterest)}
+                </span>
+              </div>
+              <div className="result-row">
+                <span className="result-label">Projected total:</span>
+                <span className="result-value">
+                  {formatCurrency(capitalizationResult.projectedTotal)}
+                </span>
+              </div>
+              <div className="result-row">
+                <span className="result-label">Assessment:</span>
+                <span className={`result-value ${capitalizationResult.rate >= capitalizationResult.threshold ? 'good' : 'warn'}`}>
+                  {capitalizationResult.rate >= capitalizationResult.threshold ? 'Looks good for your profile' : 'Low return for your profile'}
+                </span>
+              </div>
+              {capitalizationResult.bestOption && (
+                <div className="result-highlight">
+                  <span className="result-label">Best option:</span>
+                  <span className="result-value">
+                    {capitalizationResult.bestOption.option.name} ({capitalizationResult.bestOption.rate}% annual)
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {investmentPredictions.personalized?.recommendations?.length > 0 && (
+          <div className="financial-profile">
+            <h4>🧠 Personalized Strategy Picks</h4>
+            <div className="investment-features">
+              <ul>
+                {investmentPredictions.personalized.recommendations.map((item) => (
+                  <li key={`${item.symbol}-${item.bucket}`}>
+                    <strong>{item.symbol}</strong> ({item.bucket}) - {item.reason}. Suggested monthly amount: {formatCurrency(item.suggestedMonthlyAmount || 0)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {/* Investment Recommendations for Sri Lanka */}
+        <div className="investment-region">
+          <h4>🇱🇰 Sri Lanka Investment Opportunities</h4>
+          {(() => {
+            const sriLankaList = investmentPredictions.sriLanka || [];
+            const totalPages = Math.max(1, Math.ceil(sriLankaList.length / SRI_LANKA_PAGE_SIZE));
+            const currentPage = Math.min(sriLankaPage, totalPages);
+            const startIndex = (currentPage - 1) * SRI_LANKA_PAGE_SIZE;
+            const endIndex = startIndex + SRI_LANKA_PAGE_SIZE;
+            const pageItems = sriLankaList.slice(startIndex, endIndex);
+
+            if (!pageItems.length) {
+              return (
+                <div className="investment-empty">No Sri Lanka investment items available.</div>
+              );
+            }
+
+            return (
+              <>
+                <div className="investment-grid">
+                  {pageItems.map((investment) => (
+                    <div
+                      key={`${investment.name || 'sri-lanka'}-${investment.risk || 'risk'}-${investment.expectedReturn || 'return'}`}
+                      className={`investment-card ${investment.risk.toLowerCase()}`}
+                    >
+                      <div className="investment-header">
+                        <div className="investment-icon">{investment.icon}</div>
+                        <div className="investment-title-section">
+                          <h5>{investment.name}</h5>
+                          <span className={`risk-badge ${investment.risk.toLowerCase()}`}>
+                            {investment.risk} Risk
+                          </span>
+                        </div>
+                      </div>
+                      <div className="investment-details">
+                        <p className="investment-description">{investment.description}</p>
+                        <div className="investment-metrics">
+                          <div className="metric">
+                            <span className="metric-label">Live Price:</span>
+                            <span className="metric-value">{formatMarketPrice(investment.currentPrice, investment.currency)}</span>
+                          </div>
+                          <div className="metric">
+                            <span className="metric-label">Daily Move:</span>
+                            <span className={`metric-value ${getChangeClass(investment.changePercent)}`}>
+                              {formatChangePercent(investment.changePercent)}
+                            </span>
+                          </div>
+                          <div className="metric">
+                            <span className="metric-label">Expected Return:</span>
+                            <span className="metric-value positive">{investment.expectedReturn}</span>
+                          </div>
+                          <div className="metric">
+                            <span className="metric-label">Min. Investment:</span>
+                            <span className="metric-value">{investment.minInvestment}</span>
+                          </div>
+                          <div className="metric">
+                            <span className="metric-label">Time Horizon:</span>
+                            <span className="metric-value">{investment.timeHorizon}</span>
+                          </div>
+                        </div>
+                        <div className="investment-features">
+                          <strong>Key Features:</strong>
+                          <ul>
+                            {investment.features?.map((feature) => (
+                              <li key={`${investment.name || 'investment'}-feature-${feature}`}>{feature}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {sriLankaList.length > SRI_LANKA_PAGE_SIZE && (
+                  <div className="investment-pagination">
+                    <button
+                      type="button"
+                      className="pagination-btn"
+                      onClick={() => setSriLankaPage((page) => Math.max(1, page - 1))}
+                      disabled={currentPage === 1}
+                    >
+                      Previous
+                    </button>
+                    <div className="pagination-info">
+                      Page {currentPage} of {totalPages}
+                    </div>
+                    <button
+                      type="button"
+                      className="pagination-btn"
+                      onClick={() => setSriLankaPage((page) => Math.min(totalPages, page + 1))}
+                      disabled={currentPage === totalPages}
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
+              </>
+            );
+          })()}
+        </div>
+
+        {/* International Investment Options */}
+        <div className="investment-region">
+          <h4>🌍 International Investment Opportunities</h4>
+          <div className="investment-grid">
+            {investmentPredictions.international?.map((investment) => (
+              <div
+                key={`${investment.name || 'international'}-${investment.risk || 'risk'}-${investment.expectedReturn || 'return'}`}
+                className={`investment-card ${investment.risk.toLowerCase()}`}
+              >
+                <div className="investment-header">
+                  <div className="investment-icon">{investment.icon}</div>
+                  <div className="investment-title-section">
+                    <h5>{investment.name}</h5>
+                    <span className={`risk-badge ${investment.risk.toLowerCase()}`}>
+                      {investment.risk} Risk
+                    </span>
+                  </div>
+                </div>
+                <div className="investment-details">
+                  <p className="investment-description">{investment.description}</p>
+                  <div className="investment-metrics">
+                    <div className="metric">
+                      <span className="metric-label">Live Price:</span>
+                      <span className="metric-value">{formatMarketPrice(investment.currentPrice, investment.currency)}</span>
+                    </div>
+                    <div className="metric">
+                      <span className="metric-label">Daily Move:</span>
+                      <span className={`metric-value ${getChangeClass(investment.changePercent)}`}>
+                        {formatChangePercent(investment.changePercent)}
+                      </span>
+                    </div>
+                    <div className="metric">
+                      <span className="metric-label">Expected Return:</span>
+                      <span className="metric-value positive">{investment.expectedReturn}</span>
+                    </div>
+                    <div className="metric">
+                      <span className="metric-label">Min. Investment:</span>
+                      <span className="metric-value">{investment.minInvestment}</span>
+                    </div>
+                    <div className="metric">
+                      <span className="metric-label">Time Horizon:</span>
+                      <span className="metric-value">{investment.timeHorizon}</span>
+                    </div>
+                  </div>
+                  {investment.salaryRecommendation && (
+                    <div className="salary-recommendation">
+                      <strong>💼 For Your Salary:</strong>
+                      <p>{investment.salaryRecommendation}</p>
+                    </div>
+                  )}
+                  <div className="investment-features">
+                    <strong>Key Features:</strong>
+                    <ul>
+                      {investment.features?.map((feature) => (
+                        <li key={`${investment.name || 'investment'}-feature-${feature}`}>{feature}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  {investment.buyingTips && (
+                    <div className="investment-tips-section">
+                      <strong>🛒 Buying Tips:</strong>
+                      <ul>
+                        {investment.buyingTips.map((tip) => (
+                          <li key={`${investment.name || 'investment'}-buy-${tip}`}>{tip}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {investment.sellingTips && (
+                    <div className="investment-tips-section">
+                      <strong>💸 Selling Tips:</strong>
+                      <ul>
+                        {investment.sellingTips.map((tip) => (
+                          <li key={`${investment.name || 'investment'}-sell-${tip}`}>{tip}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Investment Tips */}
+        <div className="investment-tips">
+          <h4>💡 Investment Tips</h4>
+          <div className="tips-grid">
+            {investmentPredictions.tips?.map((tip) => (
+              <div key={`${tip.title || 'tip'}-${tip.icon || 'icon'}`} className="tip-card">
+                <div className="tip-icon">{tip.icon}</div>
+                <div className="tip-content">
+                  <h5>{tip.title}</h5>
+                  <p>{tip.description}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Disclaimer */}
+        <div className="investment-disclaimer">
+          <strong>⚠️ Investment Disclaimer:</strong> These recommendations are AI-generated based on your financial profile
+          and general market conditions. They are for informational purposes only and do not constitute financial advice.
+          Please consult with a certified financial advisor before making investment decisions. Past performance does not
+          guarantee future results. All investments carry risk, including potential loss of principal.
+        </div>
+      </div>
+    );
+  };
+
+  // Fetch predictions when switching to overview tab
+  useEffect(() => {
+    if (activeTab === 'overview' && !investmentPredictions && reportData) {
+      fetchInvestmentPredictions();
+    }
+  }, [activeTab, investmentPredictions, reportData, fetchInvestmentPredictions]);
+
+  useEffect(() => {
+    if (!investmentPredictions) return;
+    const options = [
+      ...(investmentPredictions.sriLanka || []),
+      ...(investmentPredictions.international || [])
+    ];
+    if (options.length > 0 && !selectedCompany) {
+      setSelectedCompany(options[0].symbol || options[0].name || '');
+    }
+  }, [investmentPredictions, selectedCompany]);
+
+  useEffect(() => {
+    if (investmentPredictions?.sriLanka?.length) {
+      setSriLankaPage(1);
+    }
+  }, [investmentPredictions?.sriLanka?.length]);
+
+  useEffect(() => {
+    if (activeTab !== 'overview' || !investmentPredictions || loadingPredictions) {
+      return undefined;
+    }
+
+    const timer = setInterval(() => {
+      fetchInvestmentPredictions(true);
+    }, 60000);
+
+    return () => clearInterval(timer);
+  }, [activeTab, investmentPredictions, loadingPredictions, fetchInvestmentPredictions]);
+
   // Download PDF report
   const downloadPDF = async () => {
     try {
@@ -91,7 +989,7 @@ const Reports = () => {
         return;
       }
 
-      const response = await fetch(`http://localhost:5000/api/reports/pdf?period=${dateRange}`, {
+      const response = await fetch(`/api/reports/pdf?period=${dateRange}`, {
         method: 'GET',
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -104,14 +1002,14 @@ const Reports = () => {
       }
 
       const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      const url = globalThis.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `financial-report-${dateRange}-${new Date().toISOString().split('T')[0]}.pdf`;
       document.body.appendChild(a);
       a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      globalThis.URL.revokeObjectURL(url);
+      a.remove();
       
       alert('PDF report downloaded successfully!');
     } catch (err) {
@@ -133,7 +1031,7 @@ const Reports = () => {
         return;
       }
 
-      const response = await fetch(`http://localhost:5000/api/reports/excel?period=${dateRange}`, {
+      const response = await fetch(`/api/reports/excel?period=${dateRange}`, {
         method: 'GET',
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -146,14 +1044,14 @@ const Reports = () => {
       }
 
       const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      const url = globalThis.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `financial-data-${dateRange}-${new Date().toISOString().split('T')[0]}.xlsx`;
       document.body.appendChild(a);
       a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      globalThis.URL.revokeObjectURL(url);
+      a.remove();
       
       alert('Excel report downloaded successfully!');
     } catch (err) {
@@ -167,14 +1065,12 @@ const Reports = () => {
   // Generate Financial Summary
   const generateSummary = async () => {
     try {
-      if (!reportData || !reportData.summary) {
+      if (!reportData?.summary) {
         alert('No report data available. Please wait for data to load or refresh the page.');
         return;
       }
 
-      const periodLabel = dateRange === '30d' ? 'Last 30 Days' : 
-                         dateRange === '90d' ? 'Last 90 Days' : 
-                         dateRange === '12m' ? 'Last 12 Months' : 'Selected Period';
+      const periodLabel = getPeriodLabel(dateRange);
 
       const summaryContent = `FINANCIAL SUMMARY REPORT
 ==================================================
@@ -217,14 +1113,14 @@ Keep this information confidential and secure.
 `;
 
       const blob = new Blob([summaryContent], { type: 'text/plain;charset=utf-8' });
-      const url = window.URL.createObjectURL(blob);
+      const url = globalThis.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `MoneyVue-Summary-${dateRange}-${new Date().toISOString().split('T')[0]}.txt`;
       document.body.appendChild(a);
       a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      globalThis.URL.revokeObjectURL(url);
+      a.remove();
       
       alert('✅ Financial summary downloaded successfully!');
     } catch (err) {
@@ -280,7 +1176,6 @@ Keep this information confidential and secure.
       <nav className="navbar">
         <div className="nav-brand">
           <div className="logo">
-            <img src={MoneyVueLogo} alt="MoneyVue" className="logo-image" />
             <span className="logo-text">MONIVUE</span>
           </div>
         </div>
@@ -290,66 +1185,61 @@ Keep this information confidential and secure.
               className="nav-link"
               onClick={() => navigate('/home')}
             >
-              <span className="nav-icon">🏠</span>
+              <span className="nav-icon">🏠</span>{' '}
               <span>Home</span>
             </button>
             <button 
               className="nav-link"
               onClick={() => navigate('/transactions')}
             >
-              <span className="nav-icon">💳</span>
+              <span className="nav-icon">💰</span>{' '}
               <span>Transactions</span>
             </button>
             <button 
               className="nav-link"
               onClick={() => navigate('/budgets')}
             >
-              <span className="nav-icon">💼</span>
+              <span className="nav-icon">📊</span>{' '}
               <span>Budgets</span>
             </button>
             <button 
               className="nav-link"
               onClick={() => navigate('/goals')}
             >
-              <span className="nav-icon">🎯</span>
+              <span className="nav-icon">🎯</span>{' '}
               <span>Goals</span>
             </button>
             <button 
               className="nav-link active"
               onClick={() => navigate('/reports')}
             >
-              <span className="nav-icon">📊</span>
+              <span className="nav-icon">📈</span>{' '}
               <span>Reports</span>
             </button>
           </div>
-          
-          <div className="profile-section">
-            <div className="user-info">
-              <span className="user-greeting">
-                {getTimeOfDayGreeting()}, {user?.name}!
-              </span>
-              <span className="current-time">
-                {currentTime.toLocaleDateString('en-US', { 
-                  weekday: 'long', 
-                  year: 'numeric', 
-                  month: 'long', 
-                  day: 'numeric' 
-                })}
-              </span>
+          <div className="user-info">
+            <div className="user-details">
+              <span className="user-greeting">{getTimeOfDayGreeting()}, {user?.name}!</span>
+              <div className="current-time">{currentTime.toLocaleDateString('en-US', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+              })}</div>
             </div>
-            
-            <div className="profile-dropdown-container">
-              <button 
-                className="profile-button"
-                onClick={() => setShowProfileDropdown(!showProfileDropdown)}
-              >
-                <div className="profile-avatar">
-                  <span className="profile-initial">{user?.name?.charAt(0).toUpperCase()}</span>
-                </div>
-                <span className="profile-chevron">
-                  {showProfileDropdown ? '▲' : '▼'}
-                </span>
-              </button>
+          </div>
+          
+          {/* Profile Dropdown */}
+          <div className="profile-container">
+            <button 
+              className="profile-button"
+              onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+            >
+              <div className="profile-avatar">
+                <span className="avatar-text">{user?.name?.charAt(0).toUpperCase()}</span>
+              </div>
+              <span className="profile-chevron">▼</span>
+            </button>
             
             {showProfileDropdown && (
               <div className="profile-dropdown">
@@ -374,7 +1264,6 @@ Keep this information confidential and secure.
                 </button>
               </div>
             )}
-            </div>
           </div>
         </div>
       </nav>
@@ -471,12 +1360,12 @@ Keep this information confidential and secure.
               <div className="chart-content">
                 <div className="budget-performance">
                   {reportData?.budgetPerformance?.length > 0 ? (
-                    reportData.budgetPerformance.map((budget, index) => {
+                    reportData.budgetPerformance.map((budget) => {
                       const spentPercentage = budget.budgeted > 0 ? 
                         Math.min((budget.spent / budget.budgeted) * 100, 100) : 0;
                       
                       return (
-                        <div key={index} className={`budget-item ${budget.status}`}>
+                        <div key={`${budget.category || 'budget'}-${budget.status}-${budget.budgeted || 0}-${budget.spent || 0}`} className={`budget-item ${budget.status}`}>
                           <div className="budget-category">{budget.category || 'Unknown Category'}</div>
                           <div className="budget-bars">
                             <div className="budget-bar budgeted">
@@ -490,10 +1379,9 @@ Keep this information confidential and secure.
                             </div>
                           </div>
                           <div className={`budget-status ${budget.status}`}>
-                            {budget.status === 'over' ? '⚠️ Over Budget' : 
-                             budget.status === 'no-budget' ? '📝 No Budget Set' : '✅ Under Budget'}
+                            {getBudgetStatusLabel(budget.status)}
                             <span style={{ marginLeft: '8px', fontSize: '0.8rem' }}>
-                              {budget.status === 'no-budget' ? '(Create budget to track)' : `(${spentPercentage.toFixed(1)}%)`}
+                              {getBudgetStatusMeta(budget.status, spentPercentage)}
                             </span>
                           </div>
                         </div>
@@ -510,6 +1398,17 @@ Keep this information confidential and secure.
                     </div>
                   )}
                 </div>
+              </div>
+            </div>
+
+            {/* AI Investment Predictions Card */}
+            <div className="chart-card investment-prediction-card">
+              <div className="chart-title">🤖 AI Investment Predictions</div>
+              <div className="investment-subtitle">
+                Personalized investment recommendations based on your income and savings
+              </div>
+              <div className="chart-content">
+                {renderInvestmentPredictions()}
               </div>
             </div>
           </div>
@@ -532,7 +1431,7 @@ Keep this information confidential and secure.
                       const expensesHeight = maxAmount > 0 ? ((trend.expenses || 0) / maxAmount) * 200 : 0;
                       
                       return (
-                        <div key={index} className="trend-bar-group">
+                        <div key={`${trend.month || 'month'}-${trend.income || 0}-${trend.expenses || 0}`} className="trend-bar-group">
                           <div className="trend-bars">
                             <div 
                               className="trend-bar income" 
@@ -608,7 +1507,7 @@ Keep this information confidential and secure.
                         const fillPercentage = maxAmount > 0 ? (category.amount / maxAmount) * 100 : 0;
                         
                         return (
-                          <div key={index} className="category-item">
+                          <div key={`${category.name || category.category || 'category'}-${category.amount || 0}-${category.percentage || 0}`} className="category-item">
                             <div className="category-dot" style={{ backgroundColor: colors[index % colors.length] }}></div>
                             <div className="category-info">
                               <div className="category-name">{category.name || category.category || 'Unknown Category'}</div>
@@ -660,7 +1559,7 @@ Keep this information confidential and secure.
                           ((savings + maxAmount) / (2 * maxAmount)) * 100 : 50;
                         
                         return (
-                          <div key={index} className="savings-point">
+                          <div key={`${trend.month || 'month'}-${trend.income || 0}-${trend.expenses || 0}-${savings}`} className="savings-point">
                             <div className="savings-line" style={{ height: `${100 - dotPosition}%` }}>
                               <div className="savings-dot-container" style={{ bottom: `${dotPosition}%` }}>
                                 <div className={`savings-dot ${savings >= 0 ? 'positive' : 'negative'}`}>
@@ -770,7 +1669,7 @@ Keep this information confidential and secure.
                 <ul>
                   <li>PDF reports include all charts and visual analysis</li>
                   <li>Excel files contain raw transaction data for custom analysis</li>
-                  <li>Reports include data for the selected time period: {dateRange === '30d' ? '30 days' : dateRange === '90d' ? '90 days' : '12 months'}</li>
+                  <li>Reports include data for the selected time period: {getPeriodText(dateRange)}</li>
                   <li>All exported data is formatted for easy sharing and analysis</li>
                 </ul>
               </div>
