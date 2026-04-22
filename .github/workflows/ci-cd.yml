@@ -90,16 +90,19 @@ jobs:
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     environment:
       name: production
+    env:
+      BACKEND_DEPLOY_HOOK_URL: ${{ secrets.BACKEND_DEPLOY_HOOK_URL }}
+      FRONTEND_DEPLOY_HOOK_URL: ${{ secrets.FRONTEND_DEPLOY_HOOK_URL }}
 
     steps:
       - name: Deploy backend (optional webhook)
-        if: ${{ secrets.BACKEND_DEPLOY_HOOK_URL != '' }}
-        run: curl -fsSL -X POST "${{ secrets.BACKEND_DEPLOY_HOOK_URL }}"
+        if: ${{ env.BACKEND_DEPLOY_HOOK_URL != '' }}
+        run: curl -fsSL -X POST "$BACKEND_DEPLOY_HOOK_URL"
 
       - name: Deploy frontend (optional webhook)
-        if: ${{ secrets.FRONTEND_DEPLOY_HOOK_URL != '' }}
-        run: curl -fsSL -X POST "${{ secrets.FRONTEND_DEPLOY_HOOK_URL }}"
+        if: ${{ env.FRONTEND_DEPLOY_HOOK_URL != '' }}
+        run: curl -fsSL -X POST "$FRONTEND_DEPLOY_HOOK_URL"
 
       - name: No deploy hooks configured
-        if: ${{ secrets.BACKEND_DEPLOY_HOOK_URL == '' && secrets.FRONTEND_DEPLOY_HOOK_URL == '' }}
+        if: ${{ env.BACKEND_DEPLOY_HOOK_URL == '' && env.FRONTEND_DEPLOY_HOOK_URL == '' }}
         run: echo "No deploy hooks configured. CI checks passed, skipping deployment."
