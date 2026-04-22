@@ -6,10 +6,6 @@ import axios from 'axios';
 import Register from '../Register';
 
 jest.mock('axios');
-jest.mock('../../utils/auth', () => ({
-  validateEmail: jest.fn((email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)),
-  validatePassword: jest.fn((pw) => pw.length >= 6)
-}));
 
 const mockNavigate = jest.fn();
 jest.mock('react-router-dom', () => ({
@@ -40,14 +36,18 @@ describe('Register Component', () => {
 
     it('should render the "Create Account" heading', () => {
       renderRegister();
-      expect(screen.getByText('Create Account')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Create Account' })).toBeInTheDocument();
     });
 
     it('should render all required input fields', () => {
       renderRegister();
       expect(screen.getByPlaceholderText('Full Name')).toBeInTheDocument();
       expect(screen.getByPlaceholderText(/email/i)).toBeInTheDocument();
-      expect(screen.getByPlaceholderText(/password/i)).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Age')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Job Role')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Monthly Salary')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Password')).toBeInTheDocument();
+      expect(screen.getByPlaceholderText('Confirm Password')).toBeInTheDocument();
     });
 
     it('should render a register submit button', () => {
@@ -68,6 +68,9 @@ describe('Register Component', () => {
       renderRegister();
       await userEvent.type(screen.getByPlaceholderText('Full Name'), 'Test User');
       await userEvent.type(screen.getByPlaceholderText(/email/i), 'test@example.com');
+      await userEvent.type(screen.getByPlaceholderText('Age'), '25');
+      await userEvent.type(screen.getByPlaceholderText('Job Role'), 'Developer');
+      await userEvent.type(screen.getByPlaceholderText('Monthly Salary'), '5000');
 
       const passwordInputs = screen.getAllByPlaceholderText(/password/i);
       await userEvent.type(passwordInputs[0], 'Password123!');
@@ -81,12 +84,12 @@ describe('Register Component', () => {
     });
 
     it('should show error for invalid email', async () => {
-      const { validateEmail } = require('../../utils/auth');
-      validateEmail.mockReturnValueOnce(false);
-
       renderRegister();
       await userEvent.type(screen.getByPlaceholderText('Full Name'), 'Test User');
       await userEvent.type(screen.getByPlaceholderText(/email/i), 'invalid-email');
+      await userEvent.type(screen.getByPlaceholderText('Age'), '25');
+      await userEvent.type(screen.getByPlaceholderText('Job Role'), 'Developer');
+      await userEvent.type(screen.getByPlaceholderText('Monthly Salary'), '5000');
 
       const passwordInputs = screen.getAllByPlaceholderText(/password/i);
       await userEvent.type(passwordInputs[0], 'Password123!');
@@ -106,6 +109,9 @@ describe('Register Component', () => {
     const fillForm = async () => {
       await userEvent.type(screen.getByPlaceholderText('Full Name'), 'Test User');
       await userEvent.type(screen.getByPlaceholderText(/email/i), 'test@example.com');
+      await userEvent.type(screen.getByPlaceholderText('Age'), '25');
+      await userEvent.type(screen.getByPlaceholderText('Job Role'), 'Developer');
+      await userEvent.type(screen.getByPlaceholderText('Monthly Salary'), '5000');
       const passwordInputs = screen.getAllByPlaceholderText(/password/i);
       await userEvent.type(passwordInputs[0], 'Password123!');
       await userEvent.type(passwordInputs[1], 'Password123!');
