@@ -5,6 +5,7 @@ const {
   createBudget,
   updateBudget,
   deleteBudget,
+  addBudgetContribution,
   getBudgetAnalytics,
   markAlertsAsRead
 } = require('../controllers/budgetController');
@@ -46,6 +47,11 @@ router.put('/:id', authMiddleware, updateBudget);
 // @desc    Delete budget
 // @access  Private
 router.delete('/:id', authMiddleware, deleteBudget);
+
+// @route   POST /api/budgets/:id/contribute
+// @desc    Add contribution to budget spent amount
+// @access  Private
+router.post('/:id/contribute', authMiddleware, addBudgetContribution);
 
 // @route   GET /api/budgets/:budgetId/analytics
 // @desc    Get budget analytics

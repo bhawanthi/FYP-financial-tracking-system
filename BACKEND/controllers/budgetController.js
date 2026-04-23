@@ -221,6 +221,75 @@ const deleteBudget = async (req, res) => {
   }
 };
 
+// Add contribution to budget spent amount
+const addBudgetContribution = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { amount } = req.body;
+    const userId = req.user.id;
+
+    const contributionAmount = parseFloat(amount);
+    if (!contributionAmount || contributionAmount <= 0) {
+      return res.status(400).json({ message: 'Contribution amount must be greater than 0' });
+    }
+
+    const budget = await Budget.findOne({ _id: id, userId });
+    if (!budget) {
+      return res.status(404).json({ message: 'Budget not found' });
+    }
+
+    if (budget.status !== 'active') {
+      return res.status(400).json({ message: 'Cannot add contribution to inactive budget' });
+    }
+
+    if (!budget.categories || budget.categories.length === 0) {
+      return res.status(400).json({ message: 'Budget categories not configured' });
+    }
+
+    const categoryBudget = budget.categories[0];
+    categoryBudget.spentAmount += contributionAmount;
+    budget.totalSpent += contributionAmount;
+
+    const spentPercentage = categoryBudget.budgetedAmount > 0
+      ? (categoryBudget.spentAmount / categoryBudget.budgetedAmount) * 100
+      : 0;
+
+    if (spentPercentage >= categoryBudget.alertThreshold && spentPercentage < 100) {
+      budget.alerts.push({
+        category: categoryBudget.category,
+        message: `You've spent ${spentPercentage.toFixed(1)}% of your ${categoryBudget.category} budget`,
+        type: 'warning'
+      });
+    } else if (spentPercentage >= 100) {
+      budget.alerts.push({
+        category: categoryBudget.category,
+        message: `You've exceeded your ${categoryBudget.category} budget by $${(categoryBudget.spentAmount - categoryBudget.budgetedAmount).toFixed(2)}`,
+        type: 'exceeded'
+      });
+    }
+
+    await budget.save();
+
+    res.json({
+      message: 'Contribution added successfully',
+      budget: {
+        _id: budget._id,
+        name: budget.name,
+        category: budget.categories[0]?.category || '',
+        amount: budget.totalBudget,
+        spent: budget.categories[0]?.spentAmount || 0,
+        period: budget.period,
+        description: budget.description || '',
+        startDate: budget.startDate,
+        endDate: budget.endDate
+      }
+    });
+  } catch (error) {
+    console.error('Add budget contribution error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 // Get budget progress and analytics
 const getBudgetAnalytics = async (req, res) => {
   try {
@@ -330,6 +399,7 @@ module.exports = {
   createBudget,
   updateBudget,
   deleteBudget,
+  addBudgetContribution,
   getBudgetAnalytics,
   markAlertsAsRead
 };

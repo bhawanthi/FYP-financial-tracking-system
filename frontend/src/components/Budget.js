@@ -5,10 +5,14 @@ import './styles/Budget.css';
 
 const Budget = () => {
   const [budgets, setBudgets] = useState([]);
+  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showContributeModal, setShowContributeModal] = useState(false);
+  const [selectedBudget, setSelectedBudget] = useState(null);
+  const [contributionAmount, setContributionAmount] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     category: '',
@@ -59,10 +63,29 @@ const Budget = () => {
     }
   }, []);
 
+  const fetchStats = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/transactions/stats?period=monthly', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setStats(data);
+      }
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+    }
+  }, []);
+
   useEffect(() => {
     fetchBudgets();
     fetchCategories();
-  }, [fetchBudgets, fetchCategories]);
+    fetchStats();
+  }, [fetchBudgets, fetchCategories, fetchStats]);
 
   useEffect(() => {
     const userData = getUserData();
@@ -221,6 +244,47 @@ const Budget = () => {
     }
   };
 
+  const handleContribute = async (e) => {
+    e.preventDefault();
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/budgets/${selectedBudget._id}/contribute`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          amount: parseFloat(contributionAmount)
+        })
+      });
+
+      if (response.ok) {
+        setShowContributeModal(false);
+        setContributionAmount('');
+        setSelectedBudget(null);
+        fetchBudgets();
+      } else {
+        const errorData = await response.json();
+        alert(errorData.message || 'Failed to add contribution');
+      }
+    } catch (error) {
+      console.error('Error adding budget contribution:', error);
+      alert('Failed to add contribution. Please try again.');
+    }
+  };
+
+  const openContributeModal = (budget) => {
+    setSelectedBudget(budget);
+    setShowContributeModal(true);
+  };
+
+  const closeContributeModal = () => {
+    setShowContributeModal(false);
+    setContributionAmount('');
+    setSelectedBudget(null);
+  };
+
   const handleEditBudget = (budget) => {
     // Open edit modal with budget data
     setFormData({
@@ -248,6 +312,18 @@ const Budget = () => {
     if (percentage >= 100) return 'over-budget';
     if (percentage >= 80) return 'near-limit';
     return 'on-track';
+  };
+
+  const getIncomeTotal = () => {
+    return stats?.totals?.find(t => t._id === 'income')?.total || 0;
+  };
+
+  const getExpenseTotal = () => {
+    return stats?.totals?.find(t => t._id === 'expense')?.total || 0;
+  };
+
+  const getBalance = () => {
+    return getIncomeTotal() - getExpenseTotal();
   };
 
   if (loading) {
@@ -397,6 +473,14 @@ const Budget = () => {
               <div className="overview-value">{formatCurrency(budgets.reduce((sum, budget) => sum + (budget.spent || 0), 0))}</div>
             </div>
           </div>
+
+          <div className="overview-card">
+            <div className="overview-icon">{getBalance() >= 0 ? '💰' : '⚠️'}</div>
+            <div className="overview-content">
+              <div className="overview-label">Net Balance</div>
+              <div className="overview-value">{formatCurrency(getBalance())}</div>
+            </div>
+          </div>
           
           <div className="overview-card">
             <div className="overview-icon">✅</div>
@@ -431,6 +515,13 @@ const Budget = () => {
               <div className="goal-header-card">
                 <h3 className="goal-name">{budget.name}</h3>
                 <div className="goal-actions">
+                  <button 
+                    className="action-btn contribute"
+                    onClick={() => openContributeModal(budget)}
+                    title="Add Contribution"
+                  >
+                    💸
+                  </button>
                   <button 
                     className="action-btn edit"
                     onClick={() => handleEditBudget(budget)}
@@ -502,6 +593,63 @@ const Budget = () => {
           ))
         )}
       </div>
+
+      {/* Contribute Modal */}
+      {showContributeModal && selectedBudget && (
+        <div className="modal-overlay" onClick={closeContributeModal}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Add to {selectedBudget.name}</h2>
+              <button 
+                className="close-btn"
+                onClick={closeContributeModal}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="contribute-info">
+              <div className="current-progress">
+                <p>Current Progress: <strong>{formatCurrency(selectedBudget.spent || 0)}</strong> / {formatCurrency(selectedBudget.amount)}</p>
+                <div className="mini-progress-bar">
+                  <div 
+                    className="mini-progress-fill"
+                    style={{ width: `${Math.min(getBudgetProgressWidth(selectedBudget), 100)}%` }}
+                  ></div>
+                </div>
+              </div>
+            </div>
+
+            <form onSubmit={handleContribute} className="contribute-form">
+              <div className="form-group">
+                <label>Contribution Amount</label>
+                <input
+                  type="number"
+                  value={contributionAmount}
+                  onChange={(e) => setContributionAmount(e.target.value)}
+                  placeholder="0.00"
+                  step="0.01"
+                  min="0"
+                  required
+                />
+              </div>
+
+              <div className="form-actions">
+                <button 
+                  type="button" 
+                  className="btn btn-secondary"
+                  onClick={closeContributeModal}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  Add Contribution
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Create Budget Modal */}
       {showCreateModal && (

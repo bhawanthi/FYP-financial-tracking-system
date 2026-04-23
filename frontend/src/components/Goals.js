@@ -5,6 +5,7 @@ import './styles/Goals.css';
 
 const Goals = () => {
   const [goals, setGoals] = useState([]);
+  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -54,9 +55,28 @@ const Goals = () => {
     }
   }, []);
 
+  const fetchStats = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/transactions/stats?period=monthly', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setStats(data);
+      }
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+    }
+  }, []);
+
   useEffect(() => {
     fetchGoals();
-  }, [fetchGoals]);
+    fetchStats();
+  }, [fetchGoals, fetchStats]);
 
   useEffect(() => {
     const userData = getUserData();
@@ -348,6 +368,18 @@ const Goals = () => {
     setShowContributeModal(true);
   };
 
+  const getIncomeTotal = () => {
+    return stats?.totals?.find(t => t._id === 'income')?.total || 0;
+  };
+
+  const getExpenseTotal = () => {
+    return stats?.totals?.find(t => t._id === 'expense')?.total || 0;
+  };
+
+  const getBalance = () => {
+    return getIncomeTotal() - getExpenseTotal();
+  };
+
   if (loading) {
     return (
       <div className="loading-dashboard">
@@ -493,6 +525,13 @@ const Goals = () => {
               <div className="overview-value">
                 {formatCurrency(goals.reduce((sum, goal) => sum + (goal.currentAmount || 0), 0))}
               </div>
+            </div>
+          </div>
+          <div className="overview-card">
+            <div className="overview-icon">{getBalance() >= 0 ? '💰' : '⚠️'}</div>
+            <div className="overview-content">
+              <div className="overview-label">Net Balance</div>
+              <div className="overview-value">{formatCurrency(getBalance())}</div>
             </div>
           </div>
           <div className="overview-card">

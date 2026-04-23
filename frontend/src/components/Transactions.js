@@ -456,8 +456,8 @@ const Transactions = () => {
         </div>
       </div>
 
-      {/* Transactions Grid */}
-      <div className="goals-grid">
+      {/* Transactions List */}
+      <div className="transactions-list-container">
         {loading ? (
           <div className="loading-state">
             <div className="loading-spinner"></div>
@@ -470,63 +470,65 @@ const Transactions = () => {
             <p>Start by adding your first income or expense transaction.</p>
           </div>
         ) : (
-          transactions.map(transaction => {
-            const category = categories.find(cat => cat.name === transaction.category);
-            return (
-              <div key={transaction._id} className={`transaction-card ${transaction.type}`}>
-                <div className="transaction-header">
-                  <h3 className="transaction-name">{transaction.description}</h3>
-                  <div className={`transaction-amount ${transaction.type}`}>
-                    {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount)}
-                  </div>
-                </div>
-
-                <div className="transaction-details">
-                  <div className="transaction-detail">
-                    <span className="transaction-detail-label">Category</span>
-                    <span className="transaction-detail-value">
-                      {category?.icon || (transaction.type === 'income' ? '💰' : '💸')} {transaction.category}
-                    </span>
-                  </div>
-                  <div className="transaction-detail">
-                    <span className="transaction-detail-label">Date</span>
-                    <span className="transaction-detail-value">{formatDate(transaction.date)}</span>
-                  </div>
-                  {transaction.paymentMethod && (
-                    <div className="transaction-detail">
-                      <span className="transaction-detail-label">Payment</span>
-                      <span className="transaction-detail-value">{transaction.paymentMethod.replace('_', ' ')}</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="transaction-actions">
-                  <button 
-                    className="transaction-delete-btn"
-                    onClick={() => handleDeleteTransaction(transaction._id)}
-                    title="Delete transaction"
-                  >
-                    🗑️ Delete
-                  </button>
-                </div>
-
-                {transaction.subcategory && (
-                  <div className="transaction-detail" style={{marginTop: '12px'}}>
-                    <span className="transaction-detail-label">Subcategory</span>
-                    <span className="transaction-detail-value">{transaction.subcategory}</span>
-                  </div>
-                )}
-
-                {transaction.tags && transaction.tags.length > 0 && (
-                  <div className="transaction-tags">
-                    {transaction.tags.map(tag => (
-                      <span key={tag} className="tag">{tag}</span>
-                    ))}
-                  </div>
-                )}
+          <div className="transactions-table-wrap">
+            <div className="transactions-table">
+              <div className="transactions-table-header">
+                <div className="transactions-col date">Date</div>
+                <div className="transactions-col description">Description</div>
+                <div className="transactions-col category">Category</div>
+                <div className="transactions-col payment">Payment</div>
+                <div className="transactions-col amount">Amount</div>
+                <div className="transactions-col actions">Actions</div>
               </div>
-            );
-          })
+
+              <div className="transactions-table-body">
+                {transactions.map(transaction => {
+                  const category = categories.find(cat => cat.name === transaction.category);
+                  return (
+                    <div key={transaction._id} className={`transactions-table-row ${transaction.type}`}>
+                      <div className="transactions-col date">{formatDate(transaction.date)}</div>
+
+                      <div className="transactions-col description">
+                        <div className="transaction-main-line">{transaction.description || 'Transaction'}</div>
+                        {transaction.subcategory && (
+                          <div className="transaction-sub-line">{transaction.subcategory}</div>
+                        )}
+                        {transaction.tags && transaction.tags.length > 0 && (
+                          <div className="transaction-tags">
+                            {transaction.tags.map(tag => (
+                              <span key={tag} className="tag">{tag}</span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="transactions-col category">
+                        {category?.icon || (transaction.type === 'income' ? '💰' : '💸')} {transaction.category}
+                      </div>
+
+                      <div className="transactions-col payment">
+                        {transaction.paymentMethod ? transaction.paymentMethod.replace('_', ' ') : '—'}
+                      </div>
+
+                      <div className={`transactions-col amount ${transaction.type}`}>
+                        {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount)}
+                      </div>
+
+                      <div className="transactions-col actions">
+                        <button
+                          className="transaction-delete-btn"
+                          onClick={() => handleDeleteTransaction(transaction._id)}
+                          title="Delete transaction"
+                        >
+                          🗑️ Delete
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         )}
       </div>
 
