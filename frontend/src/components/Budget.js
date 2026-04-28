@@ -314,16 +314,16 @@ const Budget = () => {
     return 'on-track';
   };
 
-  const getIncomeTotal = () => {
-    return stats?.totals?.find(t => t._id === 'income')?.total || 0;
+  const getTotalAllocated = () => {
+    return budgets.reduce((sum, budget) => sum + (Number(budget.amount) || 0), 0);
   };
 
-  const getExpenseTotal = () => {
-    return stats?.totals?.find(t => t._id === 'expense')?.total || 0;
+  const getTotalSpent = () => {
+    return budgets.reduce((sum, budget) => sum + (Number(budget.spent) || 0), 0);
   };
 
-  const getBalance = () => {
-    return getIncomeTotal() - getExpenseTotal();
+  const getNetBalance = () => {
+    return getTotalAllocated() - getTotalSpent();
   };
 
   if (loading) {
@@ -461,7 +461,7 @@ const Budget = () => {
             <div className="overview-content">
               <div className="overview-label">Total Allocated</div>
               <div className="overview-value">
-                {formatCurrency(budgets.reduce((sum, budget) => sum + budget.amount, 0))}
+                {formatCurrency(getTotalAllocated())}
               </div>
             </div>
           </div>
@@ -470,15 +470,15 @@ const Budget = () => {
             <div className="overview-icon">💸</div>
             <div className="overview-content">
               <div className="overview-label">Total Spent</div>
-              <div className="overview-value">{formatCurrency(budgets.reduce((sum, budget) => sum + (budget.spent || 0), 0))}</div>
+              <div className="overview-value">{formatCurrency(getTotalSpent())}</div>
             </div>
           </div>
 
           <div className="overview-card">
-            <div className="overview-icon">{getBalance() >= 0 ? '💰' : '⚠️'}</div>
+            <div className="overview-icon">{getNetBalance() >= 0 ? '💰' : '⚠️'}</div>
             <div className="overview-content">
               <div className="overview-label">Net Balance</div>
-              <div className="overview-value">{formatCurrency(getBalance())}</div>
+              <div className="overview-value">{formatCurrency(getNetBalance())}</div>
             </div>
           </div>
           
