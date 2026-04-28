@@ -1,5 +1,227 @@
 /* Reports.css - Financial Analytics Dashboard */
+/* Dark theme overrides */
+.reports-container,
+.loading-dashboard {
+  background: #080d17 !important;
+}
 
+.reports-header {
+  background: transparent !important;
+}
+
+.reports-title {
+  color: #e2e8f0 !important;
+  text-shadow: none !important;
+}
+
+.reports-subtitle {
+  color: #94a3b8 !important;
+}
+
+.tab-btn {
+  background: rgba(15, 23, 42, 0.8) !important;
+  border-color: rgba(96, 165, 250, 0.3) !important;
+  color: #94a3b8 !important;
+}
+
+.tab-btn:hover,
+.tab-btn.active {
+  background: rgba(30, 41, 59, 0.9) !important;
+  color: #e2e8f0 !important;
+  border-color: rgba(96, 165, 250, 0.6) !important;
+}
+
+.date-range-btn {
+  background: rgba(15, 23, 42, 0.8) !important;
+  border-color: rgba(96, 165, 250, 0.3) !important;
+  color: #94a3b8 !important;
+}
+
+.date-range-btn:hover,
+.date-range-btn.active {
+  background: rgba(30, 41, 59, 0.9) !important;
+  color: #e2e8f0 !important;
+  border-color: rgba(96, 165, 250, 0.6) !important;
+}
+
+.summary-card,
+.chart-card,
+.insight-card,
+.planning-card,
+.export-card,
+.budget-item,
+.investment-card,
+.tip-card {
+  background: linear-gradient(160deg, rgba(15, 23, 42, 0.9) 0%, rgba(17, 24, 39, 0.92) 100%) !important;
+  border-color: rgba(96, 165, 250, 0.2) !important;
+  box-shadow: 0 12px 32px rgba(2, 6, 23, 0.4) !important;
+}
+
+.summary-card-title {
+  color: #94a3b8 !important;
+}
+
+.summary-card-value,
+.chart-title,
+.insight-title,
+.insights-title,
+.planning-title,
+.export-title {
+  color: #e2e8f0 !important;
+  text-shadow: none !important;
+}
+
+.insight-description,
+.planning-card p,
+.export-card p,
+.export-description {
+  color: #94a3b8 !important;
+}
+
+.category-item {
+  background: rgba(15, 23, 42, 0.7) !important;
+  border-color: rgba(96, 165, 250, 0.2) !important;
+}
+
+.category-name {
+  color: #e2e8f0 !important;
+}
+
+.category-percentage {
+  color: #94a3b8 !important;
+}
+
+.no-data-message {
+  background: rgba(15, 23, 42, 0.8) !important;
+  border-color: rgba(96, 165, 250, 0.3) !important;
+  color: #94a3b8 !important;
+}
+
+.no-data-message h4 {
+  color: #e2e8f0 !important;
+}
+
+.export-info {
+  background: rgba(15, 23, 42, 0.8) !important;
+  border-color: rgba(96, 165, 250, 0.3) !important;
+}
+
+.export-info h4,
+.export-info li {
+  color: #e2e8f0 !important;
+}
+
+.investment-metrics {
+  background: rgba(15, 23, 42, 0.8) !important;
+}
+
+.metric-label,
+.metric-value {
+  color: #94a3b8 !important;
+}
+
+.investment-title-section h5,
+.investment-description,
+.tip-content h5,
+.tip-content p {
+  color: #e2e8f0 !important;
+}
+
+.financial-profile {
+  background: rgba(15, 23, 42, 0.8) !important;
+  border-color: rgba(96, 165, 250, 0.2) !important;
+}
+
+.financial-profile h4 {
+  color: #e2e8f0 !important;
+}
+
+.profile-stat {
+  background: rgba(17, 24, 39, 0.9) !important;
+}
+
+.profile-stat .stat-label {
+  color: #94a3b8 !important;
+}
+
+.profile-stat .stat-value {
+  color: #e2e8f0 !important;
+}
+
+/* Dark Navbar Override */
+.reports-container .navbar {
+  background: linear-gradient(120deg, #0b0f17 0%, #0f172a 40%, #16243a 100%) !important;
+  border-bottom: 1px solid rgba(14, 116, 144, 0.6) !important;
+  box-shadow: 0 16px 36px rgba(2, 6, 23, 0.6), inset 0 -1px 0 rgba(14, 116, 144, 0.7) !important;
+}
+
+.reports-container .nav-links {
+  background: rgba(15, 23, 42, 0.7) !important;
+  border: 1px solid rgba(96, 165, 250, 0.2) !important;
+}
+
+.reports-container .nav-link {
+  background: rgba(15, 23, 42, 0.6) !important;
+  border: 1px solid rgba(96, 165, 250, 0.2) !important;
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+.reports-container .nav-link:hover {
+  background: rgba(30, 41, 59, 0.8) !important;
+  border-color: rgba(96, 165, 250, 0.4) !important;
+}
+
+.reports-container .nav-link.active {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.35), rgba(15, 23, 42, 0.9)) !important;
+  border-color: rgba(96, 165, 250, 0.55) !important;
+}
+
+.reports-container .user-info {
+  background: rgba(15, 23, 42, 0.6) !important;
+  border: 1px solid rgba(96, 165, 250, 0.2) !important;
+}
+
+.reports-container .profile-button {
+  background: rgba(15, 23, 42, 0.75) !important;
+  border: 1px solid rgba(96, 165, 250, 0.25) !important;
+}
+
+.reports-container .profile-dropdown {
+  background: #0f172a !important;
+  border: 1px solid rgba(96, 165, 250, 0.2) !important;
+  box-shadow: 0 18px 36px rgba(2, 6, 23, 0.55) !important;
+}
+
+.reports-container .dropdown-header {
+  background: rgba(15, 23, 42, 0.85) !important;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2) !important;
+}
+
+.reports-container .dropdown-name {
+  color: #e2e8f0 !important;
+}
+
+.reports-container .dropdown-email {
+  color: #94a3b8 !important;
+}
+
+.reports-container .dropdown-item {
+  color: #cbd5e1 !important;
+}
+
+.reports-container .dropdown-item:hover {
+  background: rgba(148, 163, 184, 0.12) !important;
+  color: #e2e8f0 !important;
+}
+
+.reports-container .dropdown-item.logout {
+  color: #f87171 !important;
+}
+
+.reports-container .dropdown-item.logout:hover {
+  background: rgba(220, 38, 38, 0.2) !important;
+  color: #fecaca !important;
+}
 /* Loading States */
 .loading-dashboard {
   display: flex;

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getUserData, clearAuthData, formatCurrency } from '../utils/auth';
 import TransactionModal from './TransactionModal';
-import './styles/Goals.css';
+import './styles/Transactions.css';
 
 const Transactions = () => {
   const [transactions, setTransactions] = useState([]);
@@ -228,7 +228,7 @@ const Transactions = () => {
   };
 
   return (
-    <div className="goals-container">
+    <div className="transactions-container">
       {/* Modern Navigation Header */}
       <nav className="navbar">
         <div className="nav-brand">
@@ -323,7 +323,7 @@ const Transactions = () => {
       </nav>
 
       {/* Header */}
-      <div className="goals-header">
+      <div className="transactions-header">
         <div className="header-content">
           <h1 className="page-title">
             <span className="title-icon">💰</span>
@@ -331,14 +331,14 @@ const Transactions = () => {
           </h1>
           <div className="header-actions">
             <button 
-              className="btn btn-primary"
+              className="btn btn-income"
               onClick={() => setShowIncomeModal(true)}
             >
               <span className="btn-icon">💵</span>
               Add Income
             </button>
             <button 
-              className="btn btn-primary"
+              className="btn btn-expense"
               onClick={() => setShowExpenseModal(true)}
             >
               <span className="btn-icon">🛒</span>
@@ -348,43 +348,43 @@ const Transactions = () => {
         </div>
 
         {/* Transaction Overview */}
-        <div className="goals-overview">
-          <div className="overview-card">
-            <div className="overview-icon">📈</div>
-            <div className="overview-content">
-              <div className="overview-label">Total Income</div>
-              <div className="overview-value">{formatCurrency(getIncomeTotal())}</div>
+        <div className="stats-grid">
+          <div className="stat-card income">
+            <div className="stat-icon">📈</div>
+            <div className="stat-content">
+              <div className="stat-label">Total Income</div>
+              <div className="stat-value">{formatCurrency(getIncomeTotal())}</div>
             </div>
           </div>
-          <div className="overview-card">
-            <div className="overview-icon">📊</div>
-            <div className="overview-content">
-              <div className="overview-label">Total Expenses</div>
-              <div className="overview-value">{formatCurrency(getExpenseTotal())}</div>
+          <div className="stat-card expense">
+            <div className="stat-icon">📊</div>
+            <div className="stat-content">
+              <div className="stat-label">Total Expenses</div>
+              <div className="stat-value">{formatCurrency(getExpenseTotal())}</div>
             </div>
           </div>
-          <div className="overview-card">
-            <div className="overview-icon">{getBalance() >= 0 ? '💰' : '⚠️'}</div>
-            <div className="overview-content">
-              <div className="overview-label">Net Balance</div>
-              <div className="overview-value">{formatCurrency(getBalance())}</div>
+          <div className={`stat-card balance ${getBalance() >= 0 ? 'positive' : 'negative'}`}>
+            <div className="stat-icon">{getBalance() >= 0 ? '💰' : '⚠️'}</div>
+            <div className="stat-content">
+              <div className="stat-label">Net Balance</div>
+              <div className="stat-value">{formatCurrency(getBalance())}</div>
             </div>
           </div>
-          <div className="overview-card">
-            <div className="overview-icon">📝</div>
-            <div className="overview-content">
-              <div className="overview-label">Total Transactions</div>
-              <div className="overview-value">{transactions.length}</div>
+          <div className="stat-card">
+            <div className="stat-icon">📝</div>
+            <div className="stat-content">
+              <div className="stat-label">Total Transactions</div>
+              <div className="stat-value">{transactions.length}</div>
             </div>
           </div>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="transactions-filters">
+      <div className="filters-section">
         <div className="filters-grid">
           <div className="filter-group">
-            <label className="filter-label">
+            <label>
               <span>🏷️</span>
               Type
             </label>
@@ -400,7 +400,7 @@ const Transactions = () => {
           </div>
 
           <div className="filter-group">
-            <label className="filter-label">
+            <label>
               <span>📂</span>
               Category
             </label>
@@ -419,7 +419,7 @@ const Transactions = () => {
           </div>
 
           <div className="filter-group">
-            <label className="filter-label">
+            <label>
               <span>📅</span>
               Start Date
             </label>
@@ -432,7 +432,7 @@ const Transactions = () => {
           </div>
 
           <div className="filter-group">
-            <label className="filter-label">
+            <label>
               <span>📅</span>
               End Date
             </label>
@@ -457,7 +457,7 @@ const Transactions = () => {
       </div>
 
       {/* Transactions List */}
-      <div className="transactions-list-container">
+      <div className="transactions-section">
         {loading ? (
           <div className="loading-state">
             <div className="loading-spinner"></div>

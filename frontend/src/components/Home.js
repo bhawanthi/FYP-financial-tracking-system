@@ -757,7 +757,7 @@ const Home = () => {
                 ) : (
                   <div className="no-goals">
                     <p>No goals created yet.</p>
-                    <p style={{fontSize: '0.9em', color: '#666', marginTop: '10px'}}>
+                    <p style={{fontSize: '0.9em', color: 'var(--text-muted)', marginTop: '10px'}}>
                       Create your first financial goal to start tracking your progress!
                     </p>
                   </div>

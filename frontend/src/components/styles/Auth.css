@@ -1,4 +1,52 @@
 /* Auth.css - Calm and soothing colors for Register and Login pages */
+/* Dark Theme Override */
+.auth-container {
+  background: linear-gradient(135deg, #080d17 0%, #0b1220 50%, #0f172a 100%) !important;
+}
+
+.auth-card {
+  background: linear-gradient(160deg, rgba(15, 23, 42, 0.95) 0%, rgba(17, 24, 39, 0.98) 100%) !important;
+  border: 1px solid rgba(96, 165, 250, 0.2) !important;
+  box-shadow: 0 24px 60px rgba(2, 6, 23, 0.6) !important;
+}
+
+.auth-title {
+  color: #e2e8f0 !important;
+}
+
+.form-input {
+  background-color: #0b1220 !important;
+  border: 2px solid rgba(148, 163, 184, 0.25) !important;
+  color: #e2e8f0 !important;
+}
+
+.form-input:focus {
+  border-color: #60a5fa !important;
+  background-color: #0d1628 !important;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.18) !important;
+}
+
+.form-input::placeholder {
+  color: #64748b !important;
+}
+
+.auth-link {
+  color: #94a3b8 !important;
+}
+
+.auth-link a {
+  color: #60a5fa !important;
+}
+
+.auth-link a:hover {
+  color: #93c5fd !important;
+}
+
+.error-message {
+  background-color: rgba(220, 38, 38, 0.15) !important;
+  color: #fca5a5 !important;
+  border-left-color: #ef4444 !important;
+}
 
 .auth-container {
   min-height: 100vh;
